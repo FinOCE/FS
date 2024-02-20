@@ -17,17 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PROJECT_NAME: "InteractionGateway"
-      PROJECT_PATH: "./InteractionGateway"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          sparse-checkout: ${{ env.PROJECT_PATH }}
-          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            ${{ env.PROJECT_NAME }}
 
       - name: Move project to root
         run: |
-          mv ${{ env.PROJECT_PATH }}/* .
+          mv ./${{ env.PROJECT_NAME }}/* .
 
       - name: Setup .NET environment
         uses: actions/setup-dotnet@v3
