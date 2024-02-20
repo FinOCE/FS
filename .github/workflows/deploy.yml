@@ -1,10 +1,10 @@
 name: Deploy
 
 on:
-  # push:
-  #   branches:
-  #     - production
-  #     - main
+  push:
+    branches:
+      - production
+      - main
   workflow_dispatch:
 
 env:
@@ -12,11 +12,22 @@ env:
   REGION: eastus
 
 jobs:
-  deploy:
+  build-interaction-gateway:
+    name: Build and test interaction gateway
     runs-on: ubuntu-latest
+    env:
+      PROJECT_NAME: "InteractionGateway"
+      PROJECT_PATH: "./InteractionGateway"
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          sparse-checkout: ${{ env.PROJECT_PATH }}
+          sparse-checkout-cone-mode: false
+
+      - name: Move project to root
+        run: |
+          mv ${{ env.PROJECT_PATH }}/* .
 
       - name: Setup .NET environment
         uses: actions/setup-dotnet@v3
@@ -27,43 +38,17 @@ jobs:
         run: |
           dotnet test --configuration Release
 
-      - name: Log into Azure
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Build infrastructure with Bicep
-        id: deploy
-        uses: azure/arm-deploy@v1
-        with:
-          resourceGroupName: rg-fs-${{ env.ENVIRONMENT }}
-          template: .bicep/main.bicep
-          parameters: "environment=${{ env.ENVIRONMENT }} location=${{ env.REGION }}"
-          failOnStdErr: false
-
       - name: Create zip and prepare for deployment
         run: |
           dotnet publish --configuration Release --output ./output --self-contained
           cd ./output
-          zip -r ../deploy.zip .
+          zip -r ../${{ env.PROJECT_NAME }}.zip .
           cd ..
 
-      - name: Configure CORS
-        run: |
-          SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-          az functionapp cors remove --subscription $SUBSCRIPTION_ID -g rg-fs-${{ env.ENVIRONMENT }} -n ${{ steps.deploy.outputs.functionAppName }} --allowed-origins
-          az functionapp cors add --subscription $SUBSCRIPTION_ID -g rg-fs-${{ env.ENVIRONMENT }}-n ${{ steps.deploy.outputs.functionAppName }} --allowed-origins "*"
-
-      - name: Upload zip artifact
-        uses: actions/upload-artifact@v3
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.repository.name }}-${{ github.sha }}
-          path: ./deploy.zip
+          name: ${{ env.PROJECT_NAME }}-${{ github.sha }}
+          path: ./${{ env.PROJECT_NAME }}.zip
 
-      - name: Deploy zip through Azure CLI
-        run: |
-          SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-          az functionapp deployment source config-zip --subscription $SUBSCRIPTION_ID -g ${{ steps.deploy.outputs.resourceGroupName }} -n ${{ steps.deploy.outputs.functionAppName }} --src ./deploy.zip
-
-      - name: Log out of Azure
-        run: az logout
+  # TODO: Add deployment job - pull in zip artifacts using @actions/download-artifact
