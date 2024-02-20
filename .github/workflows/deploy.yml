@@ -24,6 +24,10 @@ jobs:
           sparse-checkout: |
             ${{ env.PROJECT_NAME }}
 
+      - name: Move to project path
+        run: |
+          cd ./${{ env.PROJECT_NAME }}
+
       - name: Setup .NET environment
         uses: actions/setup-dotnet@v3
         with:
@@ -36,9 +40,9 @@ jobs:
       - name: Create zip and prepare for deployment
         run: |
           dotnet publish --configuration Release --output ./output --self-contained
-          cd ./output
+          pushd ./output
           zip -r ../${{ env.PROJECT_NAME }}.zip .
-          cd ..
+          popd
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
