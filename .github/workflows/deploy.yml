@@ -17,16 +17,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       PROJECT_NAME: "InteractionGateway"
+    defaults:
+      run:
+        working-directory: ./${{ env.PROJECT_NAME }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          sparse-checkout: |
-            ${{ env.PROJECT_NAME }}
-
-      - name: Move to project path
-        run: |
-          cd ./${{ env.PROJECT_NAME }}
+          sparse-checkout: ${{ env.PROJECT_NAME }}
+          sparse-checkout-cone-mode: false
 
       - name: Setup .NET environment
         uses: actions/setup-dotnet@v3
@@ -41,7 +40,7 @@ jobs:
         run: |
           dotnet publish --configuration Release --output ./output --self-contained
           pushd ./output
-          zip -r ../${{ env.PROJECT_NAME }}.zip .
+          zip -r ../../${{ env.PROJECT_NAME }}.zip .
           popd
 
       - name: Upload artifact
